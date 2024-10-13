@@ -8,19 +8,24 @@ const rl = readline.createInterface({
   output: stdout
 })
 
-console.log(`Welcome to the File Manager, ${userName}!`)
-const dir = homedir()
-console.log(`You are currently in ${dir}`)
-console.log(`Enter command`)
-
-rl.on('SIGINT', () => end())
-rl.on('line', i => {
-  i.trim() === '.exit' && end()
-  console.log(`You are currently in ${dir}`, `Enter command`)
-})
-
 const end = () => {
   console.log(`Thank you for using File Manager, ${userName}, goodbye!`)
   rl.close()
   exit(0)
 }
+
+const commands = {
+  ".exit": end,
+}
+
+console.log(`Welcome to the File Manager, ${userName}!`)
+const dir = homedir()
+console.log(`You are currently in ${dir},`, `Enter command` )
+
+rl.on('SIGINT', () => end())
+rl.on('line', i => {
+  i = i.trim()
+  commands[i] ? commands[i]() : console.log('Invalid input')
+  console.log(`You are currently in ${dir},`, `Enter command`)
+})
+
