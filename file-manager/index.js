@@ -1,0 +1,2 @@
+const userName = process.argv[2]?.startsWith('--username=') ? process.argv[2].split('=')[1] : process.env.npm_config_username ? process.env.npm_config_username : 'Guest'
+console.log(`Welcome to the File Manager, ${userName}!`)
