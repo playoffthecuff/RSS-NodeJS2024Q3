@@ -11,11 +11,12 @@ const rl = readline.createInterface({
 console.log(`Welcome to the File Manager, ${userName}!`)
 const dir = homedir()
 console.log(`You are currently in ${dir}`)
+console.log(`Enter command`)
 
 rl.on('SIGINT', () => end())
 rl.on('line', i => {
-  console.log(`You are currently in ${dir}`)
   i.trim() === '.exit' && end()
+  console.log(`You are currently in ${dir}`, `Enter command`)
 })
 
 const end = () => {
