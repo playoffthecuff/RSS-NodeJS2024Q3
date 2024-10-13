@@ -1,5 +1,6 @@
 import {argv, env, exit, stdin, stdout} from "process"
 import readline from "readline"
+import {homedir} from "os"
 
 const userName = argv[2]?.startsWith('--username=') ? argv[2].split('=')[1] : env.npm_config_username ? env.npm_config_username : 'Guest'
 const rl = readline.createInterface({
@@ -8,7 +9,7 @@ const rl = readline.createInterface({
 })
 
 console.log(`Welcome to the File Manager, ${userName}!`)
-const dir = import.meta.dirname
+const dir = homedir()
 console.log(`You are currently in ${dir}`)
 
 rl.on('SIGINT', () => end())
