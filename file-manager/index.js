@@ -2,7 +2,7 @@ import {argv, env, exit, stdin, stdout} from "process"
 import readline from "readline"
 import {homedir} from "os"
 import {dirname, resolve} from "path"
-import { access, constants, createReadStream, createWriteStream, readdir, rename, rm, stat, writeFile } from "fs";
+import { access, constants, createReadStream, createWriteStream, readdir, rename, rm as remove, stat, writeFile } from "fs";
 import {pipeline} from "stream"
 
 const userName = argv[2]?.startsWith('--username=') ? argv[2].split('=')[1] : env.npm_config_username ? env.npm_config_username : 'Guest'
@@ -105,13 +105,20 @@ const mv = (p1, p2) => {
     else {
       pipeline(createReadStream(p1), createWriteStream(p2), e => {
         if (e) console.error('Operation failed -', e.message)
-        else rm(p1, e => {
+        else remove(p1, e => {
           if (e) console.error('Operation failed -', e.message)
           showCD()
         })        
       })
     }
   })
+}
+
+const rm = (p) => {
+  remove(resolve(dir, p), e => {
+    if (e) console.error('Operation failed -', e.message)
+    showCD()
+  })        
 }
 
 const commands = {
@@ -124,6 +131,7 @@ const commands = {
   rn,
   cp,
   mv,
+  rm,
 }
 
 console.log(`Welcome to the File Manager, ${userName}!`)
@@ -137,7 +145,7 @@ rl.on('line', i => {
     commands[cmd] ? commands[cmd](...i.split(' ').slice(1)) : console.warn('Invalid input')
   } catch (e) {
     console.warn('Operation failed')
-    console.log(e)
+    // console.log(e)
   }
 })
 
