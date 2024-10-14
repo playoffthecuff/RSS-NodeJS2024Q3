@@ -14,8 +14,8 @@ import {
   writeFile,
 } from "fs";
 import { pipeline } from "stream";
-import {createHash} from "crypto";
-import {createBrotliCompress, createBrotliDecompress} from "zlib"
+import { createHash } from "crypto";
+import { createBrotliCompress, createBrotliDecompress } from "zlib";
 
 const userName = argv[2]?.startsWith("--username=")
   ? argv[2].split("=")[1]
@@ -175,16 +175,21 @@ const os = (a) => {
       break;
     default:
       console.warn("Invalid input");
-      showCD()
+      showCD();
   }
 };
 
 const hash = (p) => {
-  pipeline(createReadStream(resolve(dir, p)), createHash('sha256').setEncoding('hex'), stdout, e => {
-    if (e) console.error("Operation failed -", e.message);
-    showCD()
-  })
-}
+  pipeline(
+    createReadStream(resolve(dir, p)),
+    createHash("sha256").setEncoding("hex"),
+    stdout,
+    (e) => {
+      if (e) console.error("Operation failed -", e.message);
+      showCD();
+    }
+  );
+};
 
 const compress = (p1, p2) => {
   p1 = resolve(dir, p1);
@@ -193,7 +198,7 @@ const compress = (p1, p2) => {
     if (!e) console.warn("Operation failed - target file already exist");
     else {
       const r = createReadStream(p1);
-      const t = createBrotliCompress()
+      const t = createBrotliCompress();
       const w = createWriteStream(p2);
       pipeline(r, t, w, (e) => {
         if (e) console.error("Operation failed -", e.message);
@@ -201,7 +206,24 @@ const compress = (p1, p2) => {
       });
     }
   });
-}
+};
+
+const decompress = (p1, p2) => {
+  p1 = resolve(dir, p1);
+  p2 = resolve(dir, p2);
+  access(p1, constants.F_OK, (e) => {
+    if (e) console.warn("Operation failed - compressed file doesn't exist");
+    else {
+      const r = createReadStream(p1);
+      const t = createBrotliDecompress();
+      const w = createWriteStream(p2);
+      pipeline(r, t, w, (e) => {
+        if (e) console.error("Operation failed -", e.message);
+        showCD();
+      });
+    }
+  });
+};
 
 const commands = {
   ".exit": end,
@@ -217,6 +239,7 @@ const commands = {
   os,
   hash,
   compress,
+  decompress
 };
 
 console.log(`Welcome to the File Manager, ${userName}!`);
