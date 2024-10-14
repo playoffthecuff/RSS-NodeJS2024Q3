@@ -2,7 +2,7 @@ import {argv, env, exit, stdin, stdout} from "process"
 import readline from "readline"
 import {homedir} from "os"
 import {dirname, resolve} from "path"
-import { access, constants, createReadStream, createWriteStream, readdir, rename, stat, writeFile } from "fs";
+import { access, constants, createReadStream, createWriteStream, readdir, rename, rm, stat, writeFile } from "fs";
 import {pipeline} from "stream"
 
 const userName = argv[2]?.startsWith('--username=') ? argv[2].split('=')[1] : env.npm_config_username ? env.npm_config_username : 'Guest'
@@ -87,13 +87,28 @@ const cp = (p1, p2) => {
   access(p2, constants.F_OK, e => {
     if (!e) console.warn("Operation failed - target file already exist")
     else {
-    const r = createReadStream(p1)
-    const w = createWriteStream(p2)
-    r.on('error', e => console.error('Operation failed -', e.message))
-    w.on('error', e => console.error('Operation failed -', e.message))
-    pipeline(r, w, e => {
-      if (e) console.error('Operation failed -', e.message)
-      showCD() 
+      const r = createReadStream(p1)
+      const w = createWriteStream(p2)
+      pipeline(r, w, e => {
+        if (e) console.error('Operation failed -', e.message)
+        showCD() 
+      })
+    }
+  })
+}
+
+const mv = (p1, p2) => {
+  p1 = resolve(dir, p1)
+  p2 = resolve(dir, p2)
+  access(p2, constants.F_OK, e => {
+    if (!e) console.warn("Operation failed - target file already exist")
+    else {
+      pipeline(createReadStream(p1), createWriteStream(p2), e => {
+        if (e) console.error('Operation failed -', e.message)
+        else rm(p1, e => {
+          if (e) console.error('Operation failed -', e.message)
+          showCD()
+        })        
       })
     }
   })
@@ -108,6 +123,7 @@ const commands = {
   add,
   rn,
   cp,
+  mv,
 }
 
 console.log(`Welcome to the File Manager, ${userName}!`)
