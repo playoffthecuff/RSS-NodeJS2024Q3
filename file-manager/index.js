@@ -11,6 +11,7 @@ import {
   rename,
   rm as remove,
   stat,
+  unlink,
   writeFile,
 } from "fs";
 import { pipeline } from "stream";
@@ -124,7 +125,10 @@ const cp = (p1, p2) => {
       const r = createReadStream(p1);
       const w = createWriteStream(p2);
       pipeline(r, w, (e) => {
-        if (e) console.error("Operation failed -", e.message);
+        if (e) {
+          console.error("Operation failed -", e.message);
+          unlink(p2, (e) => {});
+        }
         showCD();
       });
     }
@@ -138,7 +142,10 @@ const mv = (p1, p2) => {
     if (!e) console.warn("Operation failed - target file already exist");
     else {
       pipeline(createReadStream(p1), createWriteStream(p2), (e) => {
-        if (e) console.error("Operation failed -", e.message);
+        if (e) {
+          console.error("Operation failed -", e.message);
+          unlink(p2, (e) => {});
+        }
         else
           remove(p1, (e) => {
             if (e) console.error("Operation failed -", e.message);
@@ -201,7 +208,10 @@ const compress = (p1, p2) => {
       const t = createBrotliCompress();
       const w = createWriteStream(p2);
       pipeline(r, t, w, (e) => {
-        if (e) console.error("Operation failed -", e.message);
+        if (e) {
+          console.error("Operation failed -", e.message);
+          unlink(p2, (e) => {});
+        }
         showCD();
       });
     }
@@ -211,14 +221,17 @@ const compress = (p1, p2) => {
 const decompress = (p1, p2) => {
   p1 = resolve(dir, p1);
   p2 = resolve(dir, p2);
-  access(p1, constants.F_OK, (e) => {
-    if (e) console.warn("Operation failed - compressed file doesn't exist");
+  access(p2, constants.F_OK, (e) => {
+    if (!e) console.warn("Operation failed - target file already exist");
     else {
       const r = createReadStream(p1);
       const t = createBrotliDecompress();
       const w = createWriteStream(p2);
       pipeline(r, t, w, (e) => {
-        if (e) console.error("Operation failed -", e.message);
+        if (e) {
+          unlink(p2, (e) => {});
+          console.error("Operation failed -", e.message);
+        }
         showCD();
       });
     }
@@ -239,7 +252,7 @@ const commands = {
   os,
   hash,
   compress,
-  decompress
+  decompress,
 };
 
 console.log(`Welcome to the File Manager, ${userName}!`);
