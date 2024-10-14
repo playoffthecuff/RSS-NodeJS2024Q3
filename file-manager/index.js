@@ -2,7 +2,7 @@ import {argv, env, exit, stdin, stdout} from "process"
 import readline from "readline"
 import {homedir} from "os"
 import {dirname, join, resolve} from "path"
-import { createReadStream, stat, readdir } from "fs";
+import { access, constants, createReadStream, readdir, rename, stat, writeFile } from "fs";
 
 const userName = argv[2]?.startsWith('--username=') ? argv[2].split('=')[1] : env.npm_config_username ? env.npm_config_username : 'Guest'
 const rl = readline.createInterface({
@@ -57,12 +57,25 @@ const cat = (p) => {
   })
 }
 
+const add = (p) => {
+  p = resolve(dir, p)
+  access(p, constants.F_OK, e => {
+    if (!e) console.warn("Operation failed - such file already exist")
+    else writeFile(p, '', e => {
+      if (e) console.error('Operation failed -', e.message)
+    })
+    showCD()
+  });
+}
+
 const commands = {
   ".exit": end,
   up,
   cd,
   ls,
   cat,
+  add,
+  rn,
 }
 
 console.log(`Welcome to the File Manager, ${userName}!`)
@@ -76,7 +89,7 @@ rl.on('line', i => {
     commands[cmd] ? commands[cmd](...i.split(' ').slice(1)) : console.warn('Invalid input')
   } catch (e) {
     console.warn('Operation failed')
-    // console.log(e)
+    console.log(e)
   }
 })
 
