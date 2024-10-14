@@ -1,8 +1,8 @@
 import {argv, env, exit, stdin, stdout} from "process"
 import readline from "readline"
 import {homedir} from "os"
-import {dirname, resolve} from "path"
-import { access, stat } from "fs";
+import {dirname, join, resolve} from "path"
+import { stat, readdir } from "fs";
 
 const userName = argv[2]?.startsWith('--username=') ? argv[2].split('=')[1] : env.npm_config_username ? env.npm_config_username : 'Guest'
 const rl = readline.createInterface({
@@ -34,10 +34,21 @@ const cd = (p) => {
   })
 }
 
+const ls = () => {
+  readdir(dir, {withFileTypes: true}, (e,f) => {
+    if (e) console.error('Operation failed -', e.message)
+    else {
+      console.table(f.filter(d => d.isDirectory() || d.isFile()).map(d => ({Name: d.name, Type: d.isFile() ? 'file' : 'directory'})))
+      showCD()
+    }
+  })
+}
+
 const commands = {
   ".exit": end,
   "up": up,
   "cd": cd,
+  "ls": ls,
 }
 
 console.log(`Welcome to the File Manager, ${userName}!`)
