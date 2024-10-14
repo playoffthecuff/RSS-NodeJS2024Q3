@@ -14,6 +14,8 @@ import {
   writeFile,
 } from "fs";
 import { pipeline } from "stream";
+import {createHash} from "crypto";
+import {createBrotliCompress, createBrotliDecompress} from "zlib"
 
 const userName = argv[2]?.startsWith("--username=")
   ? argv[2].split("=")[1]
@@ -177,6 +179,30 @@ const os = (a) => {
   }
 };
 
+const hash = (p) => {
+  pipeline(createReadStream(resolve(dir, p)), createHash('sha256').setEncoding('hex'), stdout, e => {
+    if (e) console.error("Operation failed -", e.message);
+    showCD()
+  })
+}
+
+const compress = (p1, p2) => {
+  p1 = resolve(dir, p1);
+  p2 = resolve(dir, p2);
+  access(p2, constants.F_OK, (e) => {
+    if (!e) console.warn("Operation failed - target file already exist");
+    else {
+      const r = createReadStream(p1);
+      const t = createBrotliCompress()
+      const w = createWriteStream(p2);
+      pipeline(r, t, w, (e) => {
+        if (e) console.error("Operation failed -", e.message);
+        showCD();
+      });
+    }
+  });
+}
+
 const commands = {
   ".exit": end,
   up,
@@ -189,6 +215,8 @@ const commands = {
   mv,
   rm,
   os,
+  hash,
+  compress,
 };
 
 console.log(`Welcome to the File Manager, ${userName}!`);
