@@ -65,7 +65,18 @@ const add = (p) => {
       if (e) console.error('Operation failed -', e.message)
     })
     showCD()
-  });
+  })
+}
+
+const rn = (p, n) => {
+  n = resolve(dir, n)
+  access(n, constants.F_OK, e => {
+    if (!e) console.warn("Operation failed - target file already exist")
+    else rename(resolve(dir, p), resolve(dir, n), e => {
+      if (e) console.error('Operation failed -', e.message)
+    })
+  })
+  showCD()
 }
 
 const commands = {
