@@ -2,7 +2,7 @@ import {argv, env, exit, stdin, stdout} from "process"
 import readline from "readline"
 import {homedir} from "os"
 import {dirname, join, resolve} from "path"
-import { stat, readdir } from "fs";
+import { createReadStream, stat, readdir } from "fs";
 
 const userName = argv[2]?.startsWith('--username=') ? argv[2].split('=')[1] : env.npm_config_username ? env.npm_config_username : 'Guest'
 const rl = readline.createInterface({
@@ -12,7 +12,7 @@ const rl = readline.createInterface({
 
 let dir = homedir()
 
-const showCD = () => console.info(`You are currently in ${dir},`, `Enter command`)
+const showCD = () => console.info(`You are currently in ${dir},`, `Enter command:`)
 
 const end = () => {
   console.log(`Thank you for using File Manager, ${userName}, goodbye!`)
@@ -28,7 +28,7 @@ const up = () => {
 const cd = (p) => {
   stat(resolve(dir, p), (e,s) => {
     if (e) console.error('Operation failed -', e.message)
-    else if (!s.isDirectory()) console.warn("Operation failed - destination isn't directory")
+    else if (!s.isDirectory()) console.warn("Operation failed - destination isn't a directory")
     else dir = resolve(dir, p)
     showCD()
   })
@@ -44,11 +44,25 @@ const ls = () => {
   })
 }
 
+const cat = (p) => {
+  p = resolve(dir, p)
+  stat(resolve(p), (e,s) => {
+    if (e) console.error('Operation failed -', e.message)
+    else if (!s.isFile()) console.warn("Operation failed - destination isn't a file")
+    else {
+      const i = createReadStream(p)
+      i.pipe(stdout)
+      i.on('end', () => {console.log('\n'); showCD()})
+    }
+  })
+}
+
 const commands = {
   ".exit": end,
-  "up": up,
-  "cd": cd,
-  "ls": ls,
+  up,
+  cd,
+  ls,
+  cat,
 }
 
 console.log(`Welcome to the File Manager, ${userName}!`)
