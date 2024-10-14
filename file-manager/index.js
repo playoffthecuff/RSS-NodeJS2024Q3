@@ -1,8 +1,9 @@
 import {argv, env, exit, stdin, stdout} from "process"
 import readline from "readline"
 import {homedir} from "os"
-import {dirname, join, resolve} from "path"
-import { access, constants, createReadStream, readdir, rename, stat, writeFile } from "fs";
+import {dirname, resolve} from "path"
+import { access, constants, createReadStream, createWriteStream, readdir, rename, stat, writeFile } from "fs";
+import {pipeline} from "stream"
 
 const userName = argv[2]?.startsWith('--username=') ? argv[2].split('=')[1] : env.npm_config_username ? env.npm_config_username : 'Guest'
 const rl = readline.createInterface({
@@ -52,6 +53,7 @@ const cat = (p) => {
     else {
       const i = createReadStream(p)
       i.pipe(stdout)
+      i.on('error', (e) => {console.error('Operation failed -', e.message); showCD()})
       i.on('end', () => {console.log('\n'); showCD()})
     }
   })
@@ -79,6 +81,24 @@ const rn = (p, n) => {
   showCD()
 }
 
+const cp = (p1, p2) => {
+  p1 = resolve(dir, p1)
+  p2 = resolve(dir, p2)
+  access(p2, constants.F_OK, e => {
+    if (!e) console.warn("Operation failed - target file already exist")
+    else {
+    const r = createReadStream(p1)
+    const w = createWriteStream(p2)
+    r.on('error', e => console.error('Operation failed -', e.message))
+    w.on('error', e => console.error('Operation failed -', e.message))
+    pipeline(r, w, e => {
+      if (e) console.error('Operation failed -', e.message)
+      showCD() 
+      })
+    }
+  })
+}
+
 const commands = {
   ".exit": end,
   up,
@@ -87,6 +107,7 @@ const commands = {
   cat,
   add,
   rn,
+  cp,
 }
 
 console.log(`Welcome to the File Manager, ${userName}!`)
