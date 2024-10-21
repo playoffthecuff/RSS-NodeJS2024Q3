@@ -6,7 +6,7 @@ export type UserRequiredFields = {
   hobbies: string[],
 }
 
-interface User extends UserRequiredFields {
+export interface User extends UserRequiredFields {
   id: string,
 }
 
