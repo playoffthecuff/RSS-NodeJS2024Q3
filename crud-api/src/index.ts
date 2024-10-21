@@ -26,13 +26,20 @@ server.on("request", (req, res) => {
         } else {
           res.writeHead(404, c);
           res.end(
-            JSON.stringify({ message: "user with such id doesn't exist" }),
+            JSON.stringify({ message: `user with id ${id} doesn't exist` }),
           );
         }
       } else {
         res.writeHead(400, c);
-        res.end(JSON.stringify({ message: "user id is invalid (not uuid)" }));
+        res.end(
+          JSON.stringify({ message: `user id ${id} is invalid (not uuid)` }),
+        );
       }
+    } else {
+      res.writeHead(404, { "Content-type": "application/json" });
+      res.end(
+        JSON.stringify({ message: `Sorry, such route doesn't exist` }),
+      );
     }
   } else if (method === "POST" && url === "/api/users") {
     let b = "";
@@ -56,7 +63,7 @@ server.on("request", (req, res) => {
           res.writeHead(400, c);
           res.end(
             JSON.stringify({
-              message: "request body does not contain required fields",
+              message: "the request body does not contain required fields or their type doesn't match the required ones",
             }),
           );
         }
@@ -95,25 +102,49 @@ server.on("request", (req, res) => {
             }),
           );
         } else if (!validate(id)) {
-          res.writeHead(400, { "Content-type": "application/json" });
+          res.writeHead(400, c);
           res.end(
             JSON.stringify({ message: `user id ${id} is invalid (not uuid)` }),
           );
         } else {
-          res.writeHead(404, { "Content-type": "application/json" });
+          res.writeHead(404, c);
           res.end(
             JSON.stringify({ message: `record with id ${id} doesn't exist` }),
           );
         }
       } catch (e) {
-        res.writeHead(400, { "Content-type": "application/json" });
+        res.writeHead(400, c);
         res.end(JSON.stringify({ error: "Invalid JSON" }));
       }
     });
+  } else if (
+    method === "DELETE" &&
+    url?.match(/^\/api\/users\/[0-9a-fA-F-]+$/)
+  ) {
+    const id = url.split("/")[3];
+    const i = users.findIndex((u) => u.id === id);
+    if (!validate(id)) {
+      res.writeHead(400, c);
+      res.end(JSON.stringify({ message: `user ${id} is invalid (not uuid)` }));
+    } else if (i === -1) {
+      res.writeHead(404, c);
+      res.end(
+        JSON.stringify({ message: `record with id ${id} doesn't exist` }),
+      );
+    } else {
+      users.splice(i, 1);
+      res.writeHead(204, c);
+      res.end(
+        JSON.stringify({
+          message: `record with id ${id} is found and deleted`,
+        }),
+      );
+    }
   } else {
-    console.log("no match");
     res.writeHead(404, { "Content-type": "application/json" });
-    res.end(JSON.stringify({}));
+    res.end(
+      JSON.stringify({ message: `Sorry, such route doesn't exist` }),
+    );
   }
 });
 
