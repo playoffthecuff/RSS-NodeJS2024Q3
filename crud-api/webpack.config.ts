@@ -11,7 +11,7 @@ const config = {
   },
   plugins: [],
   resolve: {
-    extensions: ['.ts']
+    extensions: ['.js', '.ts']
   },
   module: {
     rules: [

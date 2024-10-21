@@ -1,10 +1,13 @@
 import { v4 } from 'uuid';
 
-type User = {
-  id: string,
+export type UserRequiredFields = {
   username: string,
   age: number,
   hobbies: string[],
+}
+
+interface User extends UserRequiredFields {
+  id: string,
 }
 
 export const users: User[] = [
