@@ -6,7 +6,7 @@
     "type": "module",
     "scripts": {
         "build": "webpack --config webpack.config.js",
-        "start:dev": "cross-env NODE_ENV=development tsx watch index.ts",
+        "start": "cross-env NODE_ENV=development tsx watch index.ts",
         "start:prod": "npm run build && cross-env NODE_ENV=production node dist/index.cjs",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
@@ -28,6 +28,7 @@
         "webpack-cli": "^5.1.4"
     },
     "dependencies": {
+        "@types/ws": "^8.5.12",
         "dotenv": "^16.4.5",
         "tsx": "^4.19.1",
         "ws": "^8.18.0"
