@@ -173,10 +173,9 @@ type AttackResData = {
   status: Status;
 };
 
-type RandomAttackData = {
-  gameId: number;
-  indexPlayer: number;
-}
+type FinishData = {
+  winPlayer: number;
+};
 
 type Game = [GameData, GameData];
 
@@ -370,8 +369,8 @@ w.on("connection", (ws) => {
       attack() {
         const d: AttackReqData = JSON.parse(data);
         if (d.x === undefined || d.y === undefined) {
-          d.x = ~~(Math.random() * 10)
-          d.y = ~~(Math.random() * 10)
+          d.x = ~~(Math.random() * 10);
+          d.y = ~~(Math.random() * 10);
         }
         const g = games.find((g) => g[0].gameId === d.gameId);
         const g1 = g?.find((g) => g.indexPlayer === d.indexPlayer);
@@ -391,6 +390,7 @@ w.on("connection", (ws) => {
         let status: Status = "miss";
         const surround: ShipPosition[] = [];
         const killed: ShipPosition[] = [];
+        let end = false;
         if (ship) {
           if (g1) g1.myTurn = false;
           if (g2) g2.myTurn = true;
@@ -438,6 +438,13 @@ w.on("connection", (ws) => {
               ...h.map((v) => ({ x: v[0], y: v[1] }))
             );
             killed.push(...c0.map((v) => ({ x: v[0], y: v[1] })));
+            end = g2.ships.every((s) => {
+              const x = getX(s);
+              const y = getY(s);
+              const c = getC(x, y);
+              return c.every((v) => g2.gameMap[v[1]][v[0]]);
+            });
+            console.log(end);
           }
         }
         const d1: AttackResData = {
@@ -482,12 +489,24 @@ w.on("connection", (ws) => {
           w.send(JSON.stringify(m0));
         });
         this.turn();
+        if (end) {
+          const dRes: FinishData = {
+            winPlayer: d.indexPlayer,
+          };
+          const m: Message = {
+            type: "finish",
+            data: JSON.stringify(dRes),
+            id,
+          };
+          ws.send(JSON.stringify(m));
+          w.send(JSON.stringify(m));
+        }
       },
       start_game() {},
       randomAttack() {
         this.attack();
       },
-      finish: () => JSON.parse(data),
+      finish() {},
     };
     try {
       handler[type]();
