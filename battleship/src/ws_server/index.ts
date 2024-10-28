@@ -44,70 +44,11 @@ type CreateGameData = {
   idPlayer: number | string;
 };
 
-// type WinnerData = {
-//   name: string;
-//   wins: number;
-// };
-
 const players = new Map<WebSocket, RegReqData>();
-// const winners: WinnerData[] [];
 
 const w = new WebSocketServer({ port });
 
 console.log(`WS server is running on ws://localhost:${port}`);
-
-// const handleMessage = (
-//   dIn: ArrayBuffer | Blob | Buffer | Buffer[],
-//   w: WebSocket
-// ) => {
-//   const md: Message = JSON.parse(dIn.toString());
-//   const { type, data } = md;
-//   const handler: Record<MessageType, () => void> = {
-
-//     reg: () => {
-//       const d: RegReqData = JSON.parse(data);
-//       // const error = DB.some((v) => v.name === d.name);
-//       const error = players.has(w);
-//       const errorText = error ? `a user named ${d.name} already exists` : "";
-//       // if (!error) DB.push(d);
-//       if (!error) players.set(w, d);
-//       const reqD: RegResData = {
-//         name: d.name,
-//         // index: DB.findIndex((v) => v.name === d.name),
-//         index: [...players.values()].findIndex(v => v.name === d.name),
-//         error,
-//         errorText,
-//       };
-//       const m: Message = {
-//         type: "reg",
-//         data: JSON.stringify(reqD),
-//         id: 0,
-//       };
-//       w.send(JSON.stringify(m));
-//     },
-
-//     update_winners: () => JSON.parse(data),
-//     create_room: () => {
-//       // w.
-//       // const reqD: CreateGameData = {
-//       //   idGame:
-//       // }
-//     },
-//     add_user_to_room: () => JSON.parse(data),
-//     create_game: () => JSON.parse(data),
-//     update_room: () => JSON.parse(data),
-//     add_ships: () => JSON.parse(data),
-//     start_game: () => JSON.parse(data),
-//     attack: () => JSON.parse(data),
-//     randomAttack: () => JSON.parse(data),
-//     finish: () => JSON.parse(data),
-//   };
-//   try {
-//     handler[type]();
-//   } catch (e) {
-//     console.error("JSON data parse failed", e);
-//   }
-// };
 
 type RoomUser = {
   name: string;
@@ -119,7 +60,7 @@ type RoomData = {
   roomUsers: RoomUser[];
 };
 
-type Winner = {
+type WinnerData = {
   name: string;
   wins: number;
 };
@@ -179,7 +120,7 @@ type FinishData = {
 
 type Game = [GameData, GameData];
 
-const winners: Winner[] = [];
+const winners: WinnerData[] = [];
 const rooms: RoomData[] = [];
 const games: Game[] = [];
 
@@ -230,7 +171,6 @@ w.on("connection", (ws) => {
         this["update_room"]();
         this["update_winners"]();
       },
-
       update_winners() {
         const m: Message = {
           type: "update_winners",
@@ -349,11 +289,8 @@ w.on("connection", (ws) => {
       turn() {
         const p1i = [...players.keys()].findIndex((w) => w === ws);
         const g = games.find((g) => g.some((v) => v.indexPlayer === p1i));
-        // const r = rooms.find((r) => r.roomUsers.some((u) => u.index === p1i));
-        // const p2i = r?.roomUsers.find((r) => r.index !== p1i)?.index ?? 0;
         const g1 = g?.find((v) => v.indexPlayer === p1i);
         const g2 = g?.find((v) => v.indexPlayer !== p1i);
-        // const w = [...players.keys()][p2i];
         const w = [...players.keys()][g2?.indexPlayer ?? 0];
         const d = {
           currentPlayer: g1?.myTurn ? g2?.indexPlayer : g1?.indexPlayer,
@@ -500,6 +437,17 @@ w.on("connection", (ws) => {
           };
           ws.send(JSON.stringify(m));
           w.send(JSON.stringify(m));
+          const n = players.get(ws)?.name;
+          const wd: WinnerData | undefined = winners.find((w) => w.name === n);
+          if (wd) {
+            wd.wins += 1;
+          } else if (n) {
+            winners.push({
+              name: n,
+              wins: 1,
+            });
+          }
+          this["update_winners"]();
         }
       },
       start_game() {},
