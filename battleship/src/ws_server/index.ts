@@ -144,16 +144,58 @@ type ShipsData = {
   indexPlayer: number;
 };
 
+type Cell = 0 | 1;
+type Row = Cell[];
+type GameMap = Row[];
+
+interface GameData extends ShipsData {
+  gameMap: GameMap;
+  myTurn: boolean;
+}
+
 type StartGameData = {
   ships: Ship[];
   currentPlayerIndex: number;
 };
 
-type Game = [ShipsData, ShipsData];
+type AttackReqData = {
+  gameId: number;
+  x: number;
+  y: number;
+  indexPlayer: number;
+};
+
+type Status = "miss" | "killed" | "shot";
+
+type AttackResData = {
+  position: ShipPosition;
+  currentPlayer: number;
+  status: Status;
+};
+
+type Game = [GameData, GameData];
 
 const winners: Winner[] = [];
 const rooms: RoomData[] = [];
 const games: Game[] = [];
+
+const getX = (s: Ship) =>
+  s.direction
+    ? [s.position.x]
+    : Array.from({ length: s.length }, (_, k) => s.position.x + k);
+const getY = (s: Ship) =>
+  s.direction
+    ? Array.from({ length: s.length }, (_, k) => s.position.y + k)
+    : [s.position.y];
+const getC = (x: number[], y: number[]) => {
+  const r: [number, number][] = [];
+  for (const i of x) {
+    for (const j of y) {
+      r.push([i, j]);
+    }
+  }
+  return r;
+};
 
 w.on("connection", (ws) => {
   console.log("WS handshake is complete");
@@ -219,12 +261,16 @@ w.on("connection", (ws) => {
           {
             gameId: games.length,
             indexPlayer: p1i,
+            myTurn: false,
             ships: [],
+            gameMap: Array.from({ length: 10 }, () => Array(10).fill(0)),
           },
           {
             gameId: games.length,
             indexPlayer: index,
+            myTurn: false,
             ships: [],
+            gameMap: Array.from({ length: 10 }, () => Array(10).fill(0)),
           },
         ];
         games.push(g);
@@ -264,12 +310,17 @@ w.on("connection", (ws) => {
       add_ships() {
         const d: ShipsData = JSON.parse(data);
         const g = games[d.gameId];
-        const p1 = g.find((v) => v.indexPlayer === d.indexPlayer);
-        if (p1) p1.ships = d.ships;
+        const g1 = g.find((v) => v.indexPlayer === d.indexPlayer);
+        const g2 = g.find((v) => v.indexPlayer !== d.indexPlayer);
+        if (g1) {
+          g1.myTurn = true;
+          g1.ships = d.ships;
+        }
+        if (g2) g2.myTurn = false;
         if (g.every((v) => v.ships.length)) {
           const d1: StartGameData = {
-            currentPlayerIndex: p1?.indexPlayer ?? 1,
-            ships: p1?.ships ?? [],
+            currentPlayerIndex: g1?.indexPlayer ?? 1,
+            ships: g1?.ships ?? [],
           };
           const p2 = g.find((v) => v.indexPlayer !== d.indexPlayer);
           const d2: StartGameData = {
@@ -293,28 +344,137 @@ w.on("connection", (ws) => {
       },
       turn() {
         const p1i = [...players.keys()].findIndex((w) => w === ws);
-        const r = rooms.find((r) => r.roomUsers.some((u) => u.index === p1i));
-        const p2i = r?.roomUsers.find(r => r.index !== p1i)?.index ?? 0;
-        const w = [...players.keys()][p2i];
-        const td1 = {
-          currentPlayer: p1i,
+        const g = games.find((g) => g.some((v) => v.indexPlayer === p1i));
+        // const r = rooms.find((r) => r.roomUsers.some((u) => u.index === p1i));
+        // const p2i = r?.roomUsers.find((r) => r.index !== p1i)?.index ?? 0;
+        const g1 = g?.find((v) => v.indexPlayer === p1i);
+        const g2 = g?.find((v) => v.indexPlayer !== p1i);
+        // const w = [...players.keys()][p2i];
+        const w = [...players.keys()][g2?.indexPlayer ?? 0];
+        const d = {
+          currentPlayer: g1?.myTurn ? g2?.indexPlayer : g1?.indexPlayer,
         };
-        const td2 = {
-          currentPlayer: p2i,
-        };
-        const tm1: Message = {
+        const m: Message = {
           type: "turn",
-          data: JSON.stringify(td1),
+          data: JSON.stringify(d),
           id,
         };
-        const tm2: Message = {
-          ...tm1,
-          data: JSON.stringify(td2),
-        };
-        ws.send(JSON.stringify(tm1));
-        w.send(JSON.stringify(tm2));
+        ws.send(JSON.stringify(m));
+        w.send(JSON.stringify(m));
       },
-      attack: () => JSON.parse(data),
+      attack() {
+        const d: AttackReqData = JSON.parse(data);
+        const g = games.find((g) => g[0].gameId === d.gameId);
+        const g1 = g?.find((g) => g.indexPlayer === d.indexPlayer);
+        const g2 = g?.find((g) => g.indexPlayer !== d.indexPlayer);
+        if (!g2?.myTurn) return;
+        if (g1) g1.myTurn = true;
+        if (g2) {
+          g2.gameMap[d.y][d.x] = 1;
+          g2.myTurn = false;
+        }
+        const w = [...players.keys()][g2?.indexPlayer ?? 0];
+        const ship: Ship | undefined = g2?.ships.find((s) => {
+          const x = getX(s);
+          const y = getY(s);
+          return x.some((v) => v === d.x) && y.some((v) => v === d.y);
+        });
+        let status: Status = "miss";
+        const surround: ShipPosition[] = [];
+        const killed: ShipPosition[] = [];
+        if (ship) {
+          if (g1) g1.myTurn = false;
+          if (g2) g2.myTurn = true;
+          const x = getX(ship);
+          const y = getY(ship);
+          const c = getC(x, y);
+          status = c.every((v) => g2?.gameMap[v[1]][v[0]]) ? "killed" : "shot";
+          if (status === "killed") {
+            const s1: Ship = {
+              direction: ship.direction,
+              length: ship.length + 2,
+              type: "huge",
+              position: {
+                x: ship.position.x - 1,
+                y: ship.position.y - 1,
+              },
+            };
+            const s2: Ship = {
+              ...s1,
+              position: {
+                x: ship.position.x + (ship.direction ? 1 : -1),
+                y: ship.position.y + (ship.direction ? -1 : 1),
+              },
+            };
+            const s0x = getX(ship);
+            const s0y = getY(ship);
+            const c0 = getC(s0x, s0y);
+            const s1x = getX(s1).filter((v) => v >= 0);
+            const s1y = getY(s1).filter((v) => v >= 0);
+            const c1 = getC(s1x, s1y);
+            const s2x = getX(s2).filter((v) => v >= 0);
+            const s2y = getY(s2).filter((v) => v >= 0);
+            const c2 = getC(s2x, s2y);
+            const h1x = ship.position.x + (ship.direction ? 0 : -1);
+            const h2x = ship.position.x + (ship.direction ? 0 : ship.length);
+            const h1y = ship.position.y + (ship.direction ? -1 : 0);
+            const h2y = ship.position.y + (ship.direction ? ship.length : 0);
+            const h = [
+              [h1x, h1y],
+              [h2x, h2y],
+            ].filter((v) => v.every((v) => v >= 0));
+            surround.push(
+              ...c1.map((v) => ({ x: v[0], y: v[1] })),
+              ...c2.map((v) => ({ x: v[0], y: v[1] })),
+              ...h.map((v) => ({ x: v[0], y: v[1] }))
+            );
+            killed.push(...c0.map((v) => ({ x: v[0], y: v[1] })));
+          }
+        }
+        const d1: AttackResData = {
+          position: {
+            x: d.x,
+            y: d.y,
+          },
+          currentPlayer: d.indexPlayer,
+          status,
+        };
+        const m1: Message = {
+          type: "attack",
+          data: JSON.stringify(d1),
+          id,
+        };
+        ws.send(JSON.stringify(m1));
+        w.send(JSON.stringify(m1));
+        surround.forEach((v) => {
+          const d2: AttackResData = {
+            position: v,
+            currentPlayer: d.indexPlayer,
+            status: "miss",
+          };
+          const m2: Message = {
+            ...m1,
+            data: JSON.stringify(d2),
+          };
+          ws.send(JSON.stringify(m2));
+          w.send(JSON.stringify(m2));
+        });
+        killed.forEach((v) => {
+          const d0: AttackResData = {
+            position: v,
+            currentPlayer: d.indexPlayer,
+            status: "killed",
+          };
+          const m0: Message = {
+            ...m1,
+            data: JSON.stringify(d0),
+          };
+          ws.send(JSON.stringify(m0));
+          w.send(JSON.stringify(m0));
+        });
+        this.turn();
+      },
+      start_game() {},
       randomAttack: () => JSON.parse(data),
       finish: () => JSON.parse(data),
     };
