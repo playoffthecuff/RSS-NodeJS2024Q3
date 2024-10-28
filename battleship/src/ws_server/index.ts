@@ -173,6 +173,11 @@ type AttackResData = {
   status: Status;
 };
 
+type RandomAttackData = {
+  gameId: number;
+  indexPlayer: number;
+}
+
 type Game = [GameData, GameData];
 
 const winners: Winner[] = [];
@@ -364,6 +369,10 @@ w.on("connection", (ws) => {
       },
       attack() {
         const d: AttackReqData = JSON.parse(data);
+        if (d.x === undefined || d.y === undefined) {
+          d.x = ~~(Math.random() * 10)
+          d.y = ~~(Math.random() * 10)
+        }
         const g = games.find((g) => g[0].gameId === d.gameId);
         const g1 = g?.find((g) => g.indexPlayer === d.indexPlayer);
         const g2 = g?.find((g) => g.indexPlayer !== d.indexPlayer);
@@ -475,7 +484,9 @@ w.on("connection", (ws) => {
         this.turn();
       },
       start_game() {},
-      randomAttack: () => JSON.parse(data),
+      randomAttack() {
+        this.attack();
+      },
       finish: () => JSON.parse(data),
     };
     try {
