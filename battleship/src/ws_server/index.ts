@@ -14,7 +14,8 @@ type MessageType =
   | "start_game"
   | "attack"
   | "randomAttack"
-  | "finish";
+  | "finish"
+  | "turn";
 
 type Message = {
   type: MessageType;
@@ -287,7 +288,31 @@ w.on("connection", (ws) => {
           ws.send(JSON.stringify(m1));
           const w = [...players.keys()][p2?.indexPlayer ?? 0];
           w.send(JSON.stringify(m2));
+          this.turn();
         }
+      },
+      turn() {
+        const p1i = [...players.keys()].findIndex((w) => w === ws);
+        const r = rooms.find((r) => r.roomUsers.some((u) => u.index === p1i));
+        const p2i = r?.roomUsers.find(r => r.index !== p1i)?.index ?? 0;
+        const w = [...players.keys()][p2i];
+        const td1 = {
+          currentPlayer: p1i,
+        };
+        const td2 = {
+          currentPlayer: p2i,
+        };
+        const tm1: Message = {
+          type: "turn",
+          data: JSON.stringify(td1),
+          id,
+        };
+        const tm2: Message = {
+          ...tm1,
+          data: JSON.stringify(td2),
+        };
+        ws.send(JSON.stringify(tm1));
+        w.send(JSON.stringify(tm2));
       },
       attack: () => JSON.parse(data),
       randomAttack: () => JSON.parse(data),
