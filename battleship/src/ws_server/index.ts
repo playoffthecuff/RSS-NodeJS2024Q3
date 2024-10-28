@@ -70,7 +70,6 @@ console.log(`WS server is running on ws://localhost:${port}`);
 //       const errorText = error ? `a user named ${d.name} already exists` : "";
 //       // if (!error) DB.push(d);
 //       if (!error) players.set(w, d);
-//       console.log([...players.values()])
 //       const reqD: RegResData = {
 //         name: d.name,
 //         // index: DB.findIndex((v) => v.name === d.name),
@@ -84,7 +83,6 @@ console.log(`WS server is running on ws://localhost:${port}`);
 //         id: 0,
 //       };
 //       w.send(JSON.stringify(m));
-//       console.log(reqD);
 //     },
 
 //     update_winners: () => JSON.parse(data),
@@ -145,6 +143,11 @@ type ShipsData = {
   indexPlayer: number;
 };
 
+type StartGameData = {
+  ships: Ship[];
+  currentPlayerIndex: number;
+};
+
 type Game = [ShipsData, ShipsData];
 
 const winners: Winner[] = [];
@@ -179,7 +182,6 @@ w.on("connection", (ws) => {
         ws.send(JSON.stringify(m));
         this["update_room"]();
         this["update_winners"]();
-        console.log(resD);
       },
 
       update_winners() {
@@ -228,7 +230,7 @@ w.on("connection", (ws) => {
         this["create_game"](p1ws);
       },
       create_game(w?: WebSocket) {
-        const i = [...players.keys()].findIndex(v => v === w);
+        const i = [...players.keys()].findIndex((v) => v === w);
         const d1: CreateGameData = {
           idGame: games.length - 1,
           idPlayer: index,
@@ -243,9 +245,8 @@ w.on("connection", (ws) => {
           id,
         };
         const m2: Message = {
-          type: "create_game",
+          ...m1,
           data: JSON.stringify(d2),
-          id,
         };
         ws.send(JSON.stringify(m1));
         if (w) w.send(JSON.stringify(m2));
@@ -262,12 +263,32 @@ w.on("connection", (ws) => {
       add_ships() {
         const d: ShipsData = JSON.parse(data);
         const g = games[d.gameId];
-        const p = g.find((v) => v.indexPlayer === d.indexPlayer);
-        if (p) p.ships = d.ships;
-        if (g.every((v) => v.ships.length)) this["start_game"]();
-        console.log(games);
+        const p1 = g.find((v) => v.indexPlayer === d.indexPlayer);
+        if (p1) p1.ships = d.ships;
+        if (g.every((v) => v.ships.length)) {
+          const d1: StartGameData = {
+            currentPlayerIndex: p1?.indexPlayer ?? 1,
+            ships: p1?.ships ?? [],
+          };
+          const p2 = g.find((v) => v.indexPlayer !== d.indexPlayer);
+          const d2: StartGameData = {
+            currentPlayerIndex: p2?.indexPlayer ?? 0,
+            ships: p2?.ships ?? [],
+          };
+          const m1: Message = {
+            type: "start_game",
+            data: JSON.stringify(d1),
+            id,
+          };
+          const m2: Message = {
+            ...m1,
+            data: JSON.stringify(d2),
+          };
+          ws.send(JSON.stringify(m1));
+          const w = [...players.keys()][p2?.indexPlayer ?? 0];
+          w.send(JSON.stringify(m2));
+        }
       },
-      start_game() {},
       attack: () => JSON.parse(data),
       randomAttack: () => JSON.parse(data),
       finish: () => JSON.parse(data),
