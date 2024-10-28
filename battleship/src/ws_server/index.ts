@@ -125,9 +125,31 @@ type Winner = {
   wins: number;
 };
 
+type ShipType = "small" | "medium" | "large" | "huge";
+
+type ShipPosition = {
+  x: number;
+  y: number;
+};
+
+type Ship = {
+  position: ShipPosition;
+  direction: boolean;
+  length: number;
+  type: ShipType;
+};
+
+type ShipsData = {
+  gameId: number;
+  ships: Ship[];
+  indexPlayer: number;
+};
+
+type Game = [ShipsData, ShipsData];
+
 const winners: Winner[] = [];
 const rooms: RoomData[] = [];
-const games: RoomData[] = [];
+const games: Game[] = [];
 
 w.on("connection", (ws) => {
   console.log("WS handshake is complete");
@@ -143,7 +165,7 @@ w.on("connection", (ws) => {
         const error = [...players.values()].some((v) => v.name === d.name);
         const errorText = error ? `a user named ${d.name} already exists` : "";
         if (!error) players.set(ws, d);
-        const reqD: RegResData = {
+        const resD: RegResData = {
           name: d.name,
           index: [...players.values()].findIndex((v) => v.name === d.name),
           error,
@@ -151,19 +173,19 @@ w.on("connection", (ws) => {
         };
         const m: Message = {
           type: "reg",
-          data: JSON.stringify(reqD),
-          id: 0,
+          data: JSON.stringify(resD),
+          id,
         };
         ws.send(JSON.stringify(m));
         this["update_room"]();
         this["update_winners"]();
-        console.log(reqD);
+        console.log(resD);
       },
 
       update_winners() {
         const m: Message = {
           type: "update_winners",
-          id: 0,
+          id,
           data: JSON.stringify(winners),
         };
         [...players.keys()].forEach((w) => w.send(JSON.stringify(m)));
@@ -179,7 +201,6 @@ w.on("connection", (ws) => {
           ],
         };
         rooms.push(r);
-        games.push(r);
         this["update_room"]();
       },
       add_user_to_room() {
@@ -189,34 +210,64 @@ w.on("connection", (ws) => {
           index,
         });
         this["update_room"]();
-        const p1ws = [...players.keys()][rooms[d.indexRoom].roomUsers[0].index];
+        const p1i = rooms[d.indexRoom].roomUsers[0].index;
+        const p1ws = [...players.keys()][p1i];
+        const g: Game = [
+          {
+            gameId: games.length,
+            indexPlayer: p1i,
+            ships: [],
+          },
+          {
+            gameId: games.length,
+            indexPlayer: index,
+            ships: [],
+          },
+        ];
+        games.push(g);
         this["create_game"](p1ws);
       },
       create_game(w?: WebSocket) {
-        const reqD: CreateGameData = {
+        const i = [...players.keys()].findIndex(v => v === w);
+        const d1: CreateGameData = {
           idGame: games.length - 1,
           idPlayer: index,
         };
-        const m: Message = {
-          type: "create_game",
-          data: JSON.stringify(reqD),
-          id: 0,
+        const d2: CreateGameData = {
+          idGame: games.length - 1,
+          idPlayer: i,
         };
-        const ms = JSON.stringify(m);
-        ws.send(ms);
-        if (w) w.send(ms);
+        const m1: Message = {
+          type: "create_game",
+          data: JSON.stringify(d1),
+          id,
+        };
+        const m2: Message = {
+          type: "create_game",
+          data: JSON.stringify(d2),
+          id,
+        };
+        ws.send(JSON.stringify(m1));
+        if (w) w.send(JSON.stringify(m2));
       },
       update_room() {
         const d = rooms.filter((r) => r.roomUsers.length === 1);
         const m: Message = {
           type: "update_room",
           data: JSON.stringify(d),
-          id: 0,
+          id,
         };
         [...players.keys()].forEach((w) => w.send(JSON.stringify(m)));
       },
-      add_ships: () => JSON.parse(data),
-      start_game: () => JSON.parse(data),
+      add_ships() {
+        const d: ShipsData = JSON.parse(data);
+        const g = games[d.gameId];
+        const p = g.find((v) => v.indexPlayer === d.indexPlayer);
+        if (p) p.ships = d.ships;
+        if (g.every((v) => v.ships.length)) this["start_game"]();
+        console.log(games);
+      },
+      start_game() {},
       attack: () => JSON.parse(data),
       randomAttack: () => JSON.parse(data),
       finish: () => JSON.parse(data),
