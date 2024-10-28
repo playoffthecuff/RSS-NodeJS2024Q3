@@ -1,146 +1,37 @@
 import { WebSocketServer, WebSocket } from "ws";
+import { getX } from "../utils/getX";
+import { getY } from "../utils/getY";
+import { getC } from "../utils/getC";
+import {
+  AddUserToRoomData,
+  AttackReqData,
+  AttackResData,
+  CreateGameData,
+  FinishData,
+  Game,
+  games,
+  Message,
+  MessageType,
+  players,
+  RegReqData,
+  RegResData,
+  RoomData,
+  rooms,
+  Ship,
+  ShipPosition,
+  ShipsData,
+  StartGameData,
+  Status,
+  WinnerData,
+  winners,
+} from "./db";
 
 const port = 3000;
 const id = 0;
 
-type MessageType =
-  | "reg"
-  | "update_winners"
-  | "create_room"
-  | "add_user_to_room"
-  | "create_game"
-  | "update_room"
-  | "add_ships"
-  | "start_game"
-  | "attack"
-  | "randomAttack"
-  | "finish"
-  | "turn";
-
-type Message = {
-  type: MessageType;
-  id: 0;
-  data: string;
-};
-
-type RegReqData = {
-  name: string;
-  password: string;
-};
-
-interface RegResData {
-  name: string;
-  index: number | string;
-  error: boolean;
-  errorText: string;
-}
-
-type AddUserToRoomData = {
-  indexRoom: number;
-};
-
-type CreateGameData = {
-  idGame: number | string;
-  idPlayer: number | string;
-};
-
-const players = new Map<WebSocket, RegReqData>();
-
 const w = new WebSocketServer({ port });
 
 console.log(`WS server is running on ws://localhost:${port}`);
-
-type RoomUser = {
-  name: string;
-  index: number;
-};
-
-type RoomData = {
-  roomId: number | string;
-  roomUsers: RoomUser[];
-};
-
-type WinnerData = {
-  name: string;
-  wins: number;
-};
-
-type ShipType = "small" | "medium" | "large" | "huge";
-
-type ShipPosition = {
-  x: number;
-  y: number;
-};
-
-type Ship = {
-  position: ShipPosition;
-  direction: boolean;
-  length: number;
-  type: ShipType;
-};
-
-type ShipsData = {
-  gameId: number;
-  ships: Ship[];
-  indexPlayer: number;
-};
-
-type Cell = 0 | 1;
-type Row = Cell[];
-type GameMap = Row[];
-
-interface GameData extends ShipsData {
-  gameMap: GameMap;
-  myTurn: boolean;
-}
-
-type StartGameData = {
-  ships: Ship[];
-  currentPlayerIndex: number;
-};
-
-type AttackReqData = {
-  gameId: number;
-  x: number;
-  y: number;
-  indexPlayer: number;
-};
-
-type Status = "miss" | "killed" | "shot";
-
-type AttackResData = {
-  position: ShipPosition;
-  currentPlayer: number;
-  status: Status;
-};
-
-type FinishData = {
-  winPlayer: number;
-};
-
-type Game = [GameData, GameData];
-
-const winners: WinnerData[] = [];
-const rooms: RoomData[] = [];
-const games: Game[] = [];
-
-const getX = (s: Ship) =>
-  s.direction
-    ? [s.position.x]
-    : Array.from({ length: s.length }, (_, k) => s.position.x + k);
-const getY = (s: Ship) =>
-  s.direction
-    ? Array.from({ length: s.length }, (_, k) => s.position.y + k)
-    : [s.position.y];
-const getC = (x: number[], y: number[]) => {
-  const r: [number, number][] = [];
-  for (const i of x) {
-    for (const j of y) {
-      r.push([i, j]);
-    }
-  }
-  return r;
-};
 
 w.on("connection", (ws) => {
   console.log("WS handshake is complete");
@@ -381,7 +272,6 @@ w.on("connection", (ws) => {
               const c = getC(x, y);
               return c.every((v) => g2.gameMap[v[1]][v[0]]);
             });
-            console.log(end);
           }
         }
         const d1: AttackResData = {
